@@ -3,7 +3,9 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// Vercel 环境下用 /tmp 目录（可写），本地开发用 server 目录
+const DATA_FILE = process.env.VERCEL ? '/tmp/data.json' : path.join(__dirname, 'data.json');
 
 // 中间件（用express内置json解析替代body-parser，减少依赖）
 app.use(cors());
@@ -12,10 +14,7 @@ app.use(express.json({ limit: '1mb' }));
 // 托管前端静态文件
 app.use(express.static(path.join(__dirname, '../public')));
 
-// 数据文件路径
-const DATA_FILE = path.join(__dirname, 'data.json');
-
-// 初始化数据文件
+// 读取数据
 function initData() {
   if (!fs.existsSync(DATA_FILE)) {
     const defaultData = {
@@ -333,8 +332,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-// 启动服务
-app.listen(PORT, () => {
-  console.log(`✅ AZDC论坛服务已启动，监听端口: ${PORT}`);
-  console.log(`📍 本地访问: http://localhost:${PORT}`);
-});
+// 导出 app 给 Vercel serverless function 使用
+module.exports = app;
+
+// 本地开发时才启动监听（Vercel 环境下不执行）
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`✅ AZDC论坛服务已启动，监听端口: ${PORT}`);
+    console.log(`📍 本地访问: http://localhost:${PORT}`);
+  });
+}
